@@ -5,3 +5,4 @@ Cargo.lock
 .idea/
 .env
 Makefile.toml.bak
+connsaturator-arm64
