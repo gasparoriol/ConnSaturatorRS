@@ -21,12 +21,6 @@ jobs:
           - os: macos-latest
             task: mac-universal-release
             artifact: connsaturator
-          - os: macos-latest
-            task: mac-x64-release
-            artifact: connsaturator-x64
-          - os: macos-latest
-            task: mac-arm64-release
-            artifact: connsaturator-arm64
 
     steps:
       - uses: actions/checkout@v3
