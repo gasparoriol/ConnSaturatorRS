@@ -2,7 +2,7 @@
 command = "cargo"
 args = ["build", "--release"]
 
-[tasks.linux-static]
+[tasks.linux-release]
 description = "Builds a static binary for Linux using MUSL"
 script = [
     "rustup target add x86_64-unknown-linux-musl",
