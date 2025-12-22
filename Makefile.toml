@@ -1,0 +1,40 @@
+[tasks.release]
+command = "cargo"
+args = ["build", "--release"]
+
+[tasks.linux-static]
+description = "Builds a static binary for Linux using MUSL"
+script = [
+    "rustup target add x86_64-unknown-linux-musl",
+    "cargo build --release --target x86_64-unknown-linux-musl"
+]
+
+[tasks.windows-release]
+description = "Builds a 64-bit Windows executable"
+script = [
+    "rustup target add x86_64-pc-windows-msvc",
+    "cargo build --release --target x86_64-pc-windows-msvc"
+]
+
+[tasks.mac-arm64-release]
+description = "Builds a universal binary for Intel and Apple Silicon"
+script = [
+    "cargo build --release --target aarch64-apple-darwin",
+    "lipo -create -output connsaturator-arm64 target/aarch64-apple-darwin/release/connsaturatorrs"
+]
+
+[tasks.mac-x64-release]
+description = "Builds a universal binary for Intel and Apple Silicon"
+script = [
+    "cargo build --release --target x86_64-apple-darwin",
+    "lipo -create -output connsaturator-x64 target/x86_64-apple-darwin/release/connsaturatorrs"
+]
+
+[tasks.mac-universal-release]
+description = "Builds a universal binary for Intel and Apple Silicon"
+script = [
+    "rustup target add aarch64-apple-darwin x86_64-apple-darwin",
+    "cargo build --release --target aarch64-apple-darwin",
+    "cargo build --release --target x86_64-apple-darwin",
+    "lipo -create -output connsaturator target/aarch64-apple-darwin/release/connsaturatorrs target/x86_64-apple-darwin/release/connsaturatorrs"
+]

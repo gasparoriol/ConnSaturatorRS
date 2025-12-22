@@ -29,9 +29,9 @@ impl ConnSaturator {
     println!("\n\nStarting connection saturation test in {}", self.config.url);
     println!("Running with {} requests and {} concurrency", self.config.requests, self.config.concurrency);
 
-    let totalRequests = self.config.requests as u64;
-    let progresBar = ProgressBar::new(totalRequests);
-    progresBar.set_style(
+    let total_requests = self.config.requests as u64;
+    let progress_bar = ProgressBar::new(total_requests);
+    progress_bar.set_style(
       ProgressStyle::default_bar()
         .template("{spinner:.green} [{elapsed_precise}] {bar:40.cyan/blue} {pos}/{len} {eta}")
         .unwrap()
@@ -51,55 +51,55 @@ impl ConnSaturator {
 
       let permit = Arc::clone(&semaphore);
 
-      let progresBarClone = progresBar.clone();
+      let progress_bar_clone = progress_bar.clone();
 
       let handle = tokio::spawn(async move {
         // here we acquire a permit
         let _permit = permit.acquire_owned().await.unwrap();
 
-        let response = clonned_client.get(url).send().await;
+        let _response = clonned_client.get(url).send().await;
 
-        progresBarClone.inc(1);
+        progress_bar_clone.inc(1);
         // here the permit is dropped and the slot is released
       });
 
       handles.push(handle);
     }
 
-    let mut succesCounter = 0;
-    let mut errorCounter = 0;
+    let mut succes_counter = 0;
+    let mut error_counter = 0;
     
 
 
     //waiting for all requests to complete
     for handle in handles {
       match handle.await {
-        Ok(_) => succesCounter += 1,
-        Err(e) => errorCounter += 1,
+        Ok(_) => succes_counter += 1,
+        Err(_e) => error_counter += 1,
       }
     }
 
-    progresBar.finish_with_message("Done");
+    progress_bar.finish_with_message("Done");
     let duration = start.elapsed();
     
     
 
-    self.print_results(succesCounter, errorCounter, duration);
+    self.print_results(succes_counter, error_counter, duration);
     println!("\nConnection saturation test completed\n");
   }
   
-  fn print_results(&self, succesCounter: usize, errorCounter: usize, duration: Duration) {
+  fn print_results(&self, succes_counter: usize, error_counter: usize, duration: Duration) {
 
-    let totalRequests = succesCounter + errorCounter;
-    let requestPerSecond = totalRequests as f64 / duration.as_secs_f64();
+    let total_requests = succes_counter + error_counter;
+    let _request_per_second = total_requests as f64 / duration.as_secs_f64();
 
     println!("\n\nResults:");
     println!("{}", "=".repeat(30));
     println!("\nURL: {}", self.config.url);
-    println!("Total requests: {}", totalRequests);
-    println!("Total successful requests: {}", succesCounter);
-    println!("Total failed requests: {}", errorCounter);
+    println!("Total requests: {}", total_requests);
+    println!("Total successful requests: {}", succes_counter);
+    println!("Total failed requests: {}", error_counter);
     println!("Total duration: {} ms", duration.as_millis());
-    println!("Average duration: {} ms", duration.as_millis() / totalRequests as u128);
+    println!("Average duration: {} ms", duration.as_millis() / total_requests as u128);
   } 
 }
