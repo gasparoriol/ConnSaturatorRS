@@ -28,22 +28,19 @@ During the development of this tool, I explored several core Rust and systems en
 
 ### Installation
 
+```basg
 1. **Clone the repository:**
-   ```bash
    git clone [https://github.com/gasparoriol/ConnSaturatorRS.git](https://github.com/gasparoriol/ConnSaturatorRS.git)
 
-```
 
 2. **Navigate to the directory:**
-```bash
-cd ConnSaturatorRS
+  cd ConnSaturatorRS
 
-```
+
 
 
 3. **Build the production release:**
-```bash
-cargo build --release
+  cargo build --release
 
 ```
 
