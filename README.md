@@ -3,6 +3,8 @@
 
 A high-performance connection saturator written in Rust, designed to evaluate the load capacity and stress resilience of web services. This project implements an efficient HTTP GET request engine and serves as a deep dive into asynchronous concurrency, memory safety, and connection pool behavior under heavy load.
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](./LICENSE)
+
 ## ⚠️ Legal Disclaimer
 
 This tool is strictly for **educational and research purposes** within the field of cybersecurity. It is designed to help developers and security professionals test application resiliency and understand network bottlenecks.
@@ -93,4 +95,4 @@ To enhance the diagnostic capabilities of ConnSaturatorRS, the following feature
 * **Report Export**: Exporting results to JSON or CSV formats for further analysis.
 
 ## 📄 License
-This project is licensed under the MIT License. See the LICENSE file for more details.
+This project is licensed under the MIT License. See the [LICENSE](./LICENSE) file for more details.
