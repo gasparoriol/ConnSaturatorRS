@@ -1,5 +1,3 @@
-¡Claro que sí! Aquí tienes el contenido íntegro en un bloque de código Markdown para que puedas copiarlo y pegarlo directamente en tu archivo `README.md`.
-
 ```markdown
 # ConnSaturatorRS: A Rust Resiliency Testing Tool
 
