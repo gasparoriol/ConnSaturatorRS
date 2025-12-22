@@ -4,7 +4,7 @@ use clap::Parser;
 use saturator::{Config, ConnSaturator};
 
 #[derive(Parser, Debug)]
-#[command(name = "ConnSaturatorRS", about = "A simple connection saturator tester", long_about = None)]
+#[command(author, version, about = "A simple connection saturator tester", long_about = None)]
 struct Cli {
     /// URL to test
     #[arg(short, long)]
