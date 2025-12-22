@@ -1,6 +1,4 @@
-¡Claro que sí! Aquí tienes el contenido íntegro en un bloque de código Markdown para que puedas copiarlo y pegarlo directamente en tu archivo `README.md`.
 
-```markdown
 # ConnSaturatorRS: A Rust Resiliency Testing Tool
 
 A high-performance connection saturator written in Rust, designed to evaluate the load capacity and stress resilience of web services. This project implements an efficient HTTP GET request engine and serves as a deep dive into asynchronous concurrency, memory safety, and connection pool behavior under heavy load.
@@ -97,3 +95,5 @@ To enhance the diagnostic capabilities of ConnSaturatorRS, the following feature
 * **Custom Headers**: Ability to pass authentication tokens or custom User-Agents via CLI.
 * **Report Export**: Exporting results to JSON or CSV formats for further analysis.
 
+## 📄 License
+This project is licensed under the MIT License. See the LICENSE file for more details.

@@ -2,6 +2,11 @@
 name = "ConnSaturatorRS"
 version = "0.1.0"
 edition = "2024"
+description = "A high-performance HTTP connection saturator for resiliency testing."
+license = "MIT"
+repository = "https://github.com/gasparoriol/ConnSaturatorRS"
+readme = "README.md"
+keywords = ["http", "load-testing", "resiliency", "async", "tokio"]
 
 [dependencies]
 tokio = { version = "1.42", features = ["full"] }
