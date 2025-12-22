@@ -1,4 +1,4 @@
-```markdown
+
 # ConnSaturatorRS: A Rust Resiliency Testing Tool
 
 A high-performance connection saturator written in Rust, designed to evaluate the load capacity and stress resilience of web services. This project implements an efficient HTTP GET request engine and serves as a deep dive into asynchronous concurrency, memory safety, and connection pool behavior under heavy load.
