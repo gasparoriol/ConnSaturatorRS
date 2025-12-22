@@ -93,13 +93,31 @@ impl ConnSaturator {
     let total_requests = succes_counter + error_counter;
     let _request_per_second = total_requests as f64 / duration.as_secs_f64();
 
-    println!("\n\nResults:");
-    println!("{}", "=".repeat(30));
-    println!("\nURL: {}", self.config.url);
-    println!("Total requests: {}", total_requests);
-    println!("Total successful requests: {}", succes_counter);
-    println!("Total failed requests: {}", error_counter);
-    println!("Total duration: {} ms", duration.as_millis());
-    println!("Average duration: {} ms", duration.as_millis() / total_requests as u128);
+    let total_duration_secs = duration.as_secs_f64();
+
+    let rps = if total_duration_secs > 0.0 {
+      succes_counter as f64 / total_duration_secs
+    } else {
+      0.0
+    };
+
+    let success_rate = if total_requests > 0 {
+      (succes_counter as f64 / total_requests as f64) * 100.0
+    } else {
+      0.0
+    };
+
+    println!("\nResults:");
+    println!("{}", "=".repeat(60));
+    
+    println!("{:<35} {}", "Target URL:", self.config.url);
+    println!("{:<35} {}", "Total Requests:", total_requests);
+    println!("{:<35} {}", "Total successful requests:", succes_counter);
+    println!("{:<35} {}", "Total failed requests:", error_counter);
+    println!("{:<35} {:.2}%", "Success Rate:", success_rate);
+    println!("{}", "-".repeat(60));
+    println!("{:<35} {:.2} s", "Total duration:", total_duration_secs);
+    println!("{:<35} {} ms", "Average latency:", duration.as_millis() / total_requests as u128);
+    println!("{:<35} {:.2} req/s", "Throughput (Requests per Second):", rps);
   } 
 }
