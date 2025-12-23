@@ -14,13 +14,13 @@ jobs:
         include:
           - os: ubuntu-latest
             task: linux-release
-            artifact: target/x86_64-unknown-linux-musl/release/connsaturatorrs
+            artifact: target/x86_64-unknown-linux-musl/release/ConnSaturatorRS
           - os: windows-latest
             task: windows-release
-            artifact: target/x86_64-pc-windows-msvc/release/connsaturatorrs.exe
+            artifact: target/x86_64-pc-windows-msvc/release/ConnSaturatorRS.exe
           - os: macos-latest
             task: mac-universal-release
-            artifact: connsaturatorrs
+            artifact: target/aarch64-apple-darwin/release/ConnSaturatorRS
 
     steps:
       - uses: actions/checkout@v3
