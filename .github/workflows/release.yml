@@ -46,9 +46,9 @@ jobs:
         run: |
           mkdir dist
           if [ "${{ matrix.os }}" = "windows-latest" ]; then
-            cp target/release/connsaturator.exe dist/${{ matrix.artifact }}
+            cp target/release/ConnSaturatorRS.exe dist/${{ matrix.artifact }}
           else
-            cp target/release/connsaturator dist/${{ matrix.artifact }}
+            cp target/release/ConnSaturatorRS dist/${{ matrix.artifact }}
           fi
 
       - name: Upload Binaries
