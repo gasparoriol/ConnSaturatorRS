@@ -14,22 +14,27 @@ jobs:
         include:
           - os: ubuntu-latest
             task: linux-release
-            artifact: target/x86_64-unknown-linux-musl/release/ConnSaturatorRS
+            source_path: target/x86_64-unknown-linux-musl/release/ConnSaturatorRS
+            asset_name: connsaturator-linux-musl
           - os: windows-latest
             task: windows-release
-            artifact: target/x86_64-pc-windows-msvc/release/ConnSaturatorRS.exe
+            source_path: target/x86_64-pc-windows-msvc/release/ConnSaturatorRS.exe
+            asset_name: connsaturator-windows.exe
           - os: macos-latest
             task: mac-universal-release
-            artifact: target/aarch64-apple-darwin/release/ConnSaturatorRS
+            source_path: target/aarch64-apple-darwin/release/ConnSaturatorRS
+            asset_name: connsaturator-macos
 
     permissions:
       contents: write
+
     steps:
       - uses: actions/checkout@v4
+
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
         with:
-          targets: x86_64-unknown-linux-musl
+          targets: x86_64-unknown-linux-musl, x86_64-pc-windows-msvc, aarch64-apple-darwin
 
       - name: Install musl-tools (Linux only)
         if: matrix.os == 'ubuntu-latest'
@@ -44,16 +49,12 @@ jobs:
       - name: Prepare asset
         shell: bash
         run: |
-          mkdir dist
-          if [ "${{ matrix.os }}" = "windows-latest" ]; then
-            cp target/release/ConnSaturatorRS.exe dist/${{ matrix.artifact }}
-          else
-            cp target/release/ConnSaturatorRS dist/${{ matrix.artifact }}
-          fi
+          mkdir -p dist
+          cp ${{ matrix.source_path }} dist/${{ matrix.asset_name }}
 
       - name: Upload Binaries
         uses: softprops/action-gh-release@v2
         with:
-          files: ${{ matrix.artifact }}
+          files: dist/${{ matrix.asset_name }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
