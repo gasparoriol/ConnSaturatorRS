@@ -94,5 +94,9 @@ To enhance the diagnostic capabilities of ConnSaturatorRS, the following feature
 * **Custom Headers**: Ability to pass authentication tokens or custom User-Agents via CLI.
 * **Report Export**: Exporting results to JSON or CSV formats for further analysis.
 
+## Mitigation
+Want to know more about the mitigation strategies? Check out the [MITIGATION.md](./MITIGATION.md) file.
+
+
 ## 📄 License
 This project is licensed under the MIT License. See the [LICENSE](./LICENSE) file for more details.
