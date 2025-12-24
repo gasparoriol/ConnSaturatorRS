@@ -32,7 +32,7 @@ During the development of this tool, I explored several core Rust and systems en
 
 ```basg
 1. **Clone the repository:**
-   git clone [https://github.com/gasparoriol/ConnSaturatorRS.git](https://github.com/gasparoriol/ConnSaturatorRS.git)
+   git clone https://github.com/gasparoriol/ConnSaturatorRS.git
 
 
 2. **Navigate to the directory:**
