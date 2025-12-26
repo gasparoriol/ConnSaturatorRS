@@ -1,15 +1,12 @@
-use reqwest::Client;
+use reqwest::{Client};
 use tokio::sync::Semaphore;
 use std::sync::Arc;
 use std::time::{Instant, Duration};
 use indicatif::{ProgressBar, ProgressStyle};
+use crate::connsaturator::requestbuilder;
+use crate::connsaturator::Config;
 
-// internal configuration
-pub struct Config {
-  pub url: String,
-  pub requests: usize,
-  pub concurrency: usize,
-}
+
 
 pub struct ConnSaturator {
   config: Config,
@@ -44,20 +41,23 @@ impl ConnSaturator {
     let semaphore = Arc::new(Semaphore::new(self.config.concurrency));
     let client = Arc::new(self.client.clone());
     let mut handles = vec![];
+   
 
     for _ in 0..self.config.requests {
       let clonned_client = Arc::clone(&client);
-      let url = self.config.url.clone();
+  
 
       let permit = Arc::clone(&semaphore);
 
       let progress_bar_clone = progress_bar.clone();
 
+      let request_builder = requestbuilder::create_builder(&clonned_client, &self.config);
+       
       let handle = tokio::spawn(async move {
         // here we acquire a permit
         let _permit = permit.acquire_owned().await.unwrap();
 
-        let _response = clonned_client.get(url).send().await;
+        let _response = request_builder.send().await;
 
         progress_bar_clone.inc(1);
         // here the permit is dropped and the slot is released

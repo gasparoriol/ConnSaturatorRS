@@ -1,7 +1,7 @@
-mod saturator;
 
+mod connsaturator;
+use connsaturator::{Config, HttpMethods, ConnSaturator};
 use clap::Parser;
-use saturator::{Config, ConnSaturator};
 
 #[derive(Parser, Debug)]
 #[command(author, version, about = "A simple connection saturator tester", long_about = None)]
@@ -17,6 +17,22 @@ struct Cli {
     /// Number of concurrent requests
     #[arg(short, long, default_value_t = 10)]
     concurrency: usize,
+
+    /// Método HTTP a utilizar
+    #[arg(short, long, value_enum, default_value_t = HttpMethods::Get)]
+    pub method: HttpMethods,
+
+    /// Token de autenticación (Bearer)
+    #[arg(short, long)]
+    pub token: Option<String>,
+
+    /// Body de la petición
+    #[arg(short, long)]
+    pub body: Option<String>,
+    
+    /// Timeout por petición en segundos
+    #[arg(long, default_value_t = 30)]
+    pub timeout: u64,
 }
 
 #[tokio::main]
@@ -28,7 +44,11 @@ pub async fn main() {
     let config = Config {
         url: arguments.url,
         requests: arguments.requests,
-        concurrency: arguments.concurrency,
+        concurrency: arguments.concurrency, 
+        token: arguments.token,
+        method: arguments.method,
+        body: arguments.body,
+        timeout: arguments.timeout,
     };
 
     // create saturator and run
