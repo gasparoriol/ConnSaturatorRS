@@ -1,6 +1,6 @@
 
 mod connsaturator;
-use connsaturator::{Config, HttpMethods, ConnSaturator};
+use connsaturator::{Config, HttpMethods, ConnSaturator, AuthMethods, CustomHeaders };
 use clap::Parser;
 
 #[derive(Parser, Debug)]
@@ -22,9 +22,12 @@ struct Cli {
     #[arg(short, long, value_enum, default_value_t = HttpMethods::Get)]
     pub method: HttpMethods,
 
-    /// Token de autenticación (Bearer)
-    #[arg(short, long)]
-    pub token: Option<String>,
+    /// Token de autenticación (Bearer, OAuth2, APIKey, Basic)
+    #[arg(long, value_parser = AuthMethods::parse_auth)]
+    pub token: Option<AuthMethods>,
+
+    #[arg(long, value_parser = CustomHeaders::parse_header)]
+    pub header: Option<CustomHeaders>,
 
     /// Body de la petición
     #[arg(short, long)]
@@ -49,6 +52,7 @@ pub async fn main() {
         method: arguments.method,
         body: arguments.body,
         timeout: arguments.timeout,
+        header: arguments.header,
     };
 
     // create saturator and run
