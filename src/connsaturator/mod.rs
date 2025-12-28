@@ -86,6 +86,7 @@ impl CustomHeaders {
 }
 
 // internal configuration
+#[derive(Clone, Debug)]
 pub struct Config {
   pub url: String,
   pub requests: usize,

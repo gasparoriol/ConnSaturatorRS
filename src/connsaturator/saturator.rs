@@ -2,6 +2,7 @@ use reqwest::{Client};
 use tokio::sync::Semaphore;
 use std::sync::Arc;
 use std::time::{Instant, Duration};
+use std::collections::HashMap;
 use indicatif::{ProgressBar, ProgressStyle};
 use crate::connsaturator::requestbuilder;
 use crate::connsaturator::Config;
@@ -41,6 +42,8 @@ impl ConnSaturator {
     let semaphore = Arc::new(Semaphore::new(self.config.concurrency));
     let client = Arc::new(self.client.clone());
     let mut handles = vec![];
+
+    let config = Arc::new(self.config.clone());
    
 
     for _ in 0..self.config.requests {
@@ -51,16 +54,20 @@ impl ConnSaturator {
 
       let progress_bar_clone = progress_bar.clone();
 
-      let request_builder = requestbuilder::create_builder(&clonned_client, &self.config);
-       
+      let config_for_thread = Arc::clone(&config);
+
       let handle = tokio::spawn(async move {
         // here we acquire a permit
         let _permit = permit.acquire_owned().await.unwrap();
 
-        let _response = request_builder.send().await;
+        
 
+        let response = requestbuilder::create_builder(&clonned_client, &*config_for_thread).send().await;
+        
         progress_bar_clone.inc(1);
         // here the permit is dropped and the slot is released
+
+        response
       });
 
       handles.push(handle);
@@ -68,14 +75,24 @@ impl ConnSaturator {
 
     let mut succes_counter = 0;
     let mut error_counter = 0;
-    
+    let mut status_code: HashMap<String, u64> = HashMap::new();
 
 
     //waiting for all requests to complete
     for handle in handles {
       match handle.await {
-        Ok(_) => succes_counter += 1,
-        Err(_e) => error_counter += 1,
+        Ok(Ok(response)) => {
+          let status = response.status().to_string();
+          *status_code.entry(status).or_insert(0) += 1;
+
+          if response.status().is_success() {
+            succes_counter += 1;
+          } else {
+            error_counter += 1;
+          }
+        }
+        Ok(Err(_e)) => error_counter += 1,
+        Err(e) =>eprintln!("Error de pánico en el hilo: {}", e),
       }
     }
 
@@ -84,11 +101,11 @@ impl ConnSaturator {
     
     
 
-    self.print_results(succes_counter, error_counter, duration);
+    self.print_results(succes_counter, error_counter, duration, status_code);
     println!("\nConnection saturation test completed\n");
   }
   
-  fn print_results(&self, succes_counter: usize, error_counter: usize, duration: Duration) {
+  fn print_results(&self, succes_counter: usize, error_counter: usize, duration: Duration, status_code: HashMap<String, u64>) {
 
     let total_requests = succes_counter + error_counter;
     let _request_per_second = total_requests as f64 / duration.as_secs_f64();
@@ -96,7 +113,7 @@ impl ConnSaturator {
     let total_duration_secs = duration.as_secs_f64();
 
     let rps = if total_duration_secs > 0.0 {
-      succes_counter as f64 / total_duration_secs
+      (succes_counter as f64 + error_counter as f64) / total_duration_secs
     } else {
       0.0
     };
@@ -114,7 +131,11 @@ impl ConnSaturator {
     println!("{:<35} {}", "Total Requests:", total_requests);
     println!("{:<35} {}", "Total successful requests:", succes_counter);
     println!("{:<35} {}", "Total failed requests:", error_counter);
-    println!("{:<35} {:.2}%", "Success Rate:", success_rate);
+    println!("\nStatus Code Distribution:");
+    for (status, count) in &status_code {
+      println!("{:<34}  {:<1} requests", format!("{}", status), count);
+    }
+    println!("\n{:<35} {:.2}%", "Success Rate:", success_rate);
     println!("{}", "-".repeat(60));
     println!("{:<35} {:.2} s", "Total duration:", total_duration_secs);
     println!("{:<35} {} ms", "Average latency:", duration.as_millis() / total_requests as u128);
