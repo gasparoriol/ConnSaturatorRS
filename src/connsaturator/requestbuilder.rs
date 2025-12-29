@@ -4,10 +4,13 @@ use crate::connsaturator::AuthMethods;
 use crate::connsaturator::CustomHeaders;
 use crate::connsaturator::OAuth2Config;
 
+use reqwest::header::{HeaderMap, HeaderValue, USER_AGENT, CONTENT_TYPE};
+
 use std::time::Duration;
 
 pub fn create_builder(client: &reqwest::Client, config: &Config) -> reqwest::RequestBuilder {
     let url = &config.url;
+     
     
     let mut builder = match config.method {
         HttpMethods::Get => client.get(url),
@@ -34,6 +37,16 @@ pub fn create_builder(client: &reqwest::Client, config: &Config) -> reqwest::Req
     if let Some(header) = &config.header {
         builder = builder.header(&header.name.clone(), &header.value.clone());
     }
-    
+
+    if let Some(user_agent)= &config.user_agent {
+        builder = builder.header(USER_AGENT, user_agent);
+    }
+
+    if HttpMethods::Get != config.method {
+        let content_type = HeaderValue::from_str(&config.content_type).unwrap_or_else(|_| HeaderValue::from_static("application/json"));
+        builder = builder.header(CONTENT_TYPE, content_type);
+    }
+
+ 
     builder
 }

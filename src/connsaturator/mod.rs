@@ -11,7 +11,7 @@ use reqwest::header::{HeaderName, HeaderValue};
 use std::str::FromStr;
 
 //Methods
-#[derive(ValueEnum, Clone, Debug, Copy)]
+#[derive(ValueEnum, Clone, Debug, Copy, PartialEq)]
 pub enum HttpMethods {
   Get,
   Post,
@@ -96,4 +96,7 @@ pub struct Config {
   pub body: Option<String>,
   pub timeout: u64,
   pub header: Option<CustomHeaders>,
+  pub user_agent: Option<String>,
+  pub content_type: String,
+  pub insecure: bool,
 }

@@ -2,6 +2,7 @@
 mod connsaturator;
 use connsaturator::{Config, HttpMethods, ConnSaturator, AuthMethods, CustomHeaders };
 use clap::Parser;
+use reqwest::header::HeaderValue;
 
 #[derive(Parser, Debug)]
 #[command(author, version, about = "A simple connection saturator tester", long_about = None)]
@@ -18,24 +19,36 @@ struct Cli {
     #[arg(short, long, default_value_t = 10)]
     concurrency: usize,
 
-    /// Método HTTP a utilizar
-    #[arg(short, long, value_enum, default_value_t = HttpMethods::Get)]
+    /// HTTP method to use
+     #[arg(short, long, value_enum, default_value_t = HttpMethods::Get)]
     pub method: HttpMethods,
 
-    /// Token de autenticación (Bearer, OAuth2, APIKey, Basic)
+    /// Authentication method (Bearer, OAuth2, APIKey, Basic)
     #[arg(long, value_parser = AuthMethods::parse_auth)]
     pub token: Option<AuthMethods>,
 
     #[arg(long, value_parser = CustomHeaders::parse_header)]
     pub header: Option<CustomHeaders>,
 
-    /// Body de la petición
+    /// Body of the request
     #[arg(short, long)]
     pub body: Option<String>,
     
-    /// Timeout por petición en segundos
+    /// Timeout in seconds
     #[arg(long, default_value_t = 30)]
     pub timeout: u64,
+
+    /// User agent
+    #[arg(long = "user-agent", short = 'a')]
+    pub user_agent: Option<String>,
+
+    /// Content type
+    #[arg(long = "content-type", short = 't', default_value = "application/json")]
+    pub content_type: String,
+
+    /// Insecure
+    #[arg(long, short = 'i', default_value_t = false)]
+    pub insecure: bool,
 }
 
 #[tokio::main]
@@ -53,10 +66,20 @@ pub async fn main() {
         body: arguments.body,
         timeout: arguments.timeout,
         header: arguments.header,
+        user_agent: arguments.user_agent,
+        content_type: arguments.content_type,
+        insecure: arguments.insecure,
     };
 
     // create saturator and run
-    let saturator = ConnSaturator::new(config);
-    saturator.run().await;
+    match ConnSaturator::new(config) {
+        Ok(saturator) => {
+            saturator.run().await;
+        }
+        Err(e) => {
+            eprintln!("Error crítico al configurar el saturator: {}", e);
+            return;
+        }
+    }
 }
 
