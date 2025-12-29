@@ -81,7 +81,6 @@ public class RateLimiterFilter implements OncePerRequestFilter {
   @Autowired
   private RateLimiterService rateLimiterService;
 
-  private static final long MAX_WAIT_TIME_MS = 3000;
 
   @Override
   protected void doFilterInternal(@NonNull HttpServletRequest request, 
