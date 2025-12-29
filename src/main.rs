@@ -7,19 +7,19 @@ use reqwest::header::HeaderValue;
 #[derive(Parser, Debug)]
 #[command(author, version, about = "A simple connection saturator tester", long_about = None)]
 struct Cli {
-    /// URL to test
+    /// URL to test (Required)
     #[arg(short, long)]
     url: String,
     
-    /// Total number of requests
+    /// Total number of requests 
     #[arg(short, long, default_value_t = 100)]
     requests: usize,
     
-    /// Number of concurrent requests
+    /// Number of concurrent requests 
     #[arg(short, long, default_value_t = 10)]
     concurrency: usize,
 
-    /// HTTP method to use
+    /// HTTP method to use 
      #[arg(short, long, value_enum, default_value_t = HttpMethods::Get)]
     pub method: HttpMethods,
 
@@ -27,6 +27,7 @@ struct Cli {
     #[arg(long, value_parser = AuthMethods::parse_auth)]
     pub token: Option<AuthMethods>,
 
+    /// Custom headers
     #[arg(long, value_parser = CustomHeaders::parse_header)]
     pub header: Option<CustomHeaders>,
 
@@ -34,19 +35,19 @@ struct Cli {
     #[arg(short, long)]
     pub body: Option<String>,
     
-    /// Timeout in seconds
+    /// Timeout in seconds 
     #[arg(long, default_value_t = 30)]
     pub timeout: u64,
 
-    /// User agent
+    /// User agent (Default: None)
     #[arg(long = "user-agent", short = 'a')]
     pub user_agent: Option<String>,
 
-    /// Content type
+    /// Content type 
     #[arg(long = "content-type", short = 't', default_value = "application/json")]
     pub content_type: String,
 
-    /// Insecure
+    /// Insecure (Default: false)
     #[arg(long, short = 'i', default_value_t = false)]
     pub insecure: bool,
 }
