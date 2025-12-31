@@ -6,7 +6,10 @@ use std::collections::HashMap;
 use indicatif::{ProgressBar, ProgressStyle};
 use crate::connsaturator::requestbuilder;
 use crate::connsaturator::Config;
-
+use crate::connsaturator::SummaryReport;
+use std::sync::atomic::{AtomicU64, Ordering};
+use std::fs::File;
+use std::io::Write;
 
 
 pub struct ConnSaturator {
@@ -79,6 +82,7 @@ impl ConnSaturator {
     let mut error_counter = 0;
     let mut status_code: HashMap<String, u64> = HashMap::new();
     let mut latencies: Vec<Duration> = Vec::new();
+    let mut total_bytes: AtomicU64 = AtomicU64::new(0);
 
     //waiting for all requests to complete
     for handle in handles {
@@ -86,15 +90,25 @@ impl ConnSaturator {
         Ok((result_response, duration)) => {
           match result_response {
             Ok(response) => {
-              latencies.push(duration);
               let status = response.status().to_string();
-              *status_code.entry(status).or_insert(0) += 1;
-
               if response.status().is_success() {
                 succes_counter += 1;
               } else {
                 error_counter += 1;
               }
+              if let Some(len) = response.content_length() {
+                total_bytes.fetch_add(len, Ordering::Relaxed);
+              } else {
+                if let Ok(body_bytes) = response.bytes().await {
+                  total_bytes.fetch_add(body_bytes.len() as u64, Ordering::Relaxed);
+                } else {
+                  error_counter += 1;
+                }
+              }
+
+              latencies.push(duration);
+              
+              *status_code.entry(status).or_insert(0) += 1;
             
           },
           Err(e) => {
@@ -115,8 +129,12 @@ impl ConnSaturator {
     
     latencies.sort();
 
-    self.print_results(succes_counter, error_counter, duration, status_code, latencies);
+    self.print_results(succes_counter, error_counter, duration, &status_code, &latencies);
     println!("\nConnection saturation test completed\n");
+
+    if self.config.output {
+      self.save_report(succes_counter, error_counter, duration, &status_code, &latencies, total_bytes.load(Ordering::Relaxed));
+    } 
   }
 
   fn calculate_percentiles(&self, latencies: &Vec<Duration>) -> HashMap<String, f64> {
@@ -131,7 +149,7 @@ impl ConnSaturator {
     percentiles
   }
   
-  fn print_results(&self, succes_counter: usize, error_counter: usize, duration: Duration, status_code: HashMap<String, u64>, latencies: Vec<Duration>) {
+  fn print_results(&self, succes_counter: usize, error_counter: usize, duration: Duration, status_code: &HashMap<String, u64>, latencies: &Vec<Duration>) {
     let percentiles = self.calculate_percentiles(&latencies);
     
     let total_requests = succes_counter + error_counter;
@@ -164,7 +182,7 @@ impl ConnSaturator {
     println!("{:<35} {}", "Total successful requests:", succes_counter);
     println!("{:<35} {}", "Total failed requests:", error_counter);
     println!("\nStatus Code Distribution:");
-    for (status, count) in &status_code {
+    for (status, count) in status_code {
       println!("{:<34}  {:<1} requests", format!("{}", status), count);
     }
     println!("\n{:<35} {:.2}%", "Success Rate:", success_rate);
@@ -181,7 +199,7 @@ impl ConnSaturator {
     self.print_histogram(latencies);
   } 
 
-  fn print_histogram(&self, latencies: Vec<Duration>) {
+  fn print_histogram(&self, latencies: &Vec<Duration>) {
     if (latencies.is_empty()) {
       return;
     }
@@ -217,7 +235,101 @@ impl ConnSaturator {
       println!("  {:4}ms - {:4}ms  [{:30}] {}", start_value, end_value, bar, count);
       
     } 
+  }
+
+   fn save_report(&self, succes_counter: usize, error_counter: usize, duration: Duration, status_code: &HashMap<String, u64>, latencies: &Vec<Duration>, total_bytes: u64) {
+    let percentiles = self.calculate_percentiles(&latencies);
     
+    let total_requests = succes_counter + error_counter;
+    let _request_per_second = total_requests as f64 / duration.as_secs_f64();
+
+    let total_duration_secs = duration.as_secs_f64();
+
+    let rps = if total_duration_secs > 0.0 {
+      (succes_counter as f64 + error_counter as f64) / total_duration_secs
+    } else {
+      0.0
+    };
+
+    let success_rate = if total_requests > 0 {
+      (succes_counter as f64 / total_requests as f64) * 100.0
+    } else {
+      0.0
+    };
+
+    // To calculate average
+    let total_duration_millis: Duration = latencies.iter().sum();
     
+    let average_latency = total_duration_millis / latencies.len() as u32;
+
+
+    let total_data_received_mb = self.format_bytes(total_bytes);
+    let throughput_mbps = self.calculate_throughput(total_bytes, total_duration_secs);
+
+    let summary_report = SummaryReport {
+      target_url: self.config.url.clone(),
+      total_requests: total_requests as f64,
+      total_successful_requests: succes_counter as f64,
+      total_failed_requests: error_counter as f64,
+      avg_latency_ms: average_latency.as_millis() as f64,
+      success_rate,
+      total_duration_secs,
+      rps,
+      p50_latency_ms: percentiles["p50"],
+      p90_latency_ms: percentiles["p90"],
+      p95_latency_ms: percentiles["p95"],
+      p99_latency_ms: percentiles["p99"],
+      status_code_distribution: status_code.clone(),
+      total_data_received_mb,
+      throughput_mbps: self.format_throughput(throughput_mbps),
+      };
+
+    let json = serde_json::to_string_pretty(&summary_report).unwrap();
+    println!("\nSummary Report:\n{}", json);
+
+    let mut file = std::fs::File::create("summary_report.json").unwrap();
+    file.write_all(json.as_bytes()).unwrap(); 
+  }
+  
+  fn format_bytes(&self, bytes: u64) -> String {
+    let kb = bytes as f64 / 1024.0;
+    let mb = kb / 1024.0;
+    let gb = mb / 1024.0;
+
+    if gb >= 1.0 {
+        format!("{:.2} GB", gb)
+    } else if mb >= 1.0 {
+        format!("{:.2} MB", mb)
+    } else if kb >= 1.0 {
+        format!("{:.2} KB", kb)
+    } else {
+        format!("{} B", bytes)
+    }
+  }
+
+  fn calculate_throughput(&self, bytes: u64, duration_secs: f64) -> f64 {
+    if duration_secs <= 0.0 {
+        return 0.0;
+    }
+    let megabytes = bytes as f64 / (1024.0 * 1024.0);
+    let megabits = megabytes * 8.0;
+    let mbps = ((megabits / duration_secs) * 100.0).round() / 100.0;
+    mbps
+  }
+
+  fn format_throughput(&self, mbps: f64) -> String {
+    let kb = mbps / 8.0;
+    let mb = kb / 1024.0;
+    let gb = mb / 1024.0;
+
+    if gb >= 1.0 {
+        format!("{:.2} GB/s", gb)
+    } else if mb >= 1.0 {
+        format!("{:.2} MB/s", mb)
+    } else if kb >= 1.0 {
+        format!("{:.2} KB/s", kb)
+    } else {
+        format!("{} B/s", mbps)
+    }
   }
 }

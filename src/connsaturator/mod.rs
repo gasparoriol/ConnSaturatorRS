@@ -8,7 +8,9 @@ pub use saturator::ConnSaturator;
 pub use requestbuilder::create_builder;
 
 use reqwest::header::{HeaderName, HeaderValue};
+use serde::{Deserialize, Serialize};
 use std::str::FromStr;
+use std::collections::HashMap;
 
 //Methods
 #[derive(ValueEnum, Clone, Debug, Copy, PartialEq)]
@@ -99,4 +101,24 @@ pub struct Config {
   pub user_agent: Option<String>,
   pub content_type: String,
   pub insecure: bool,
+  pub output: bool,
+}
+
+#[derive(Serialize)]
+struct SummaryReport {
+    target_url: String,
+    total_requests: f64,
+    total_successful_requests: f64,
+    total_failed_requests: f64,
+    avg_latency_ms: f64,
+    success_rate: f64,
+    total_duration_secs: f64,
+    rps: f64,
+    p50_latency_ms: f64,
+    p90_latency_ms: f64,
+    p95_latency_ms: f64,
+    p99_latency_ms: f64,
+    status_code_distribution: HashMap<String, u64>,
+    total_data_received_mb: String,
+    throughput_mbps: String, 
 }
