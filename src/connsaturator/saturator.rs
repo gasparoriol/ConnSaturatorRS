@@ -133,7 +133,8 @@ impl ConnSaturator {
     println!("\nConnection saturation test completed\n");
 
     if self.config.output {
-      self.save_report(succes_counter, error_counter, duration, &status_code, &latencies, total_bytes.load(Ordering::Relaxed));
+      self.save_report_json(succes_counter, error_counter, duration, &status_code, &latencies, total_bytes.load(Ordering::Relaxed));
+      self.save_report_csv(succes_counter, error_counter, duration, &status_code, &latencies, total_bytes.load(Ordering::Relaxed));
     } 
   }
 
@@ -237,7 +238,7 @@ impl ConnSaturator {
     } 
   }
 
-   fn save_report(&self, succes_counter: usize, error_counter: usize, duration: Duration, status_code: &HashMap<String, u64>, latencies: &Vec<Duration>, total_bytes: u64) {
+   fn save_report_json(&self, succes_counter: usize, error_counter: usize, duration: Duration, status_code: &HashMap<String, u64>, latencies: &Vec<Duration>, total_bytes: u64) {
     let percentiles = self.calculate_percentiles(&latencies);
     
     let total_requests = succes_counter + error_counter;
@@ -268,20 +269,20 @@ impl ConnSaturator {
 
     let summary_report = SummaryReport {
       target_url: self.config.url.clone(),
-      total_requests: total_requests as f64,
-      total_successful_requests: succes_counter as f64,
-      total_failed_requests: error_counter as f64,
+      total_requests: self.format_integer_value(total_requests as f64),
+      total_successful_requests: self.format_integer_value(succes_counter as f64),
+      total_failed_requests: self.format_integer_value(error_counter as f64),
       avg_latency_ms: average_latency.as_millis() as f64,
-      success_rate,
-      total_duration_secs,
-      rps,
+      success_rate: self.format_integer_value(success_rate),
+      total_duration_secs: self.format_float_value(total_duration_secs),
+      rps: self.format_float_value(rps),
       p50_latency_ms: percentiles["p50"],
       p90_latency_ms: percentiles["p90"],
       p95_latency_ms: percentiles["p95"],
       p99_latency_ms: percentiles["p99"],
       status_code_distribution: status_code.clone(),
-      total_data_received_mb,
-      throughput_mbps: self.format_throughput(throughput_mbps),
+      total_data_received_mb: self.format_float_value(total_data_received_mb),
+      throughput_mbps: self.format_float_value(throughput_mbps),
       };
 
     let json = serde_json::to_string_pretty(&summary_report).unwrap();
@@ -290,21 +291,69 @@ impl ConnSaturator {
     let mut file = std::fs::File::create("summary_report.json").unwrap();
     file.write_all(json.as_bytes()).unwrap(); 
   }
+
+fn save_report_csv(&self, succes_counter: usize, error_counter: usize, duration: Duration, status_code: &HashMap<String, u64>, latencies: &Vec<Duration>, total_bytes: u64) {
+    let percentiles = self.calculate_percentiles(&latencies);
+    
+    let total_requests = succes_counter + error_counter;
+    let _request_per_second = total_requests as f64 / duration.as_secs_f64();
+
+    let total_duration_secs = duration.as_secs_f64();
+
+    let rps = if total_duration_secs > 0.0 {
+      (succes_counter as f64 + error_counter as f64) / total_duration_secs
+    } else {
+      0.0
+    };
+
+    let success_rate = if total_requests > 0 {
+      (succes_counter as f64 / total_requests as f64) * 100.0
+    } else {
+      0.0
+    };
+
+    // To calculate average
+    let total_duration_millis: Duration = latencies.iter().sum();
+    
+    let average_latency = total_duration_millis / latencies.len() as u32;
+
+
+    let total_data_received_mb = self.format_bytes(total_bytes);
+    let throughput_mbps = self.calculate_throughput(total_bytes, total_duration_secs);
+
+    let mut csv = String::new();
+    
+    let header = "target_url,total_requests,total_successful,total_failed,avg_latency_ms,success_rate,duration_secs,rps,p50,p90,p95,p99,total_mb,throughput_mbps";
+        
+    let row = format!(      
+      "{},{},{},{},{},{},{},{},{},{},{},{},{},{}",
+      self.config.url.clone(),
+      self.format_integer_value(total_requests as f64),
+      self.format_integer_value(succes_counter as f64),
+      self.format_integer_value(error_counter as f64),
+      average_latency.as_millis() as f64,
+      self.format_integer_value(success_rate),
+      self.format_float_value(total_duration_secs),
+      self.format_float_value(rps),
+      percentiles["p50"],
+      percentiles["p90"],
+      percentiles["p95"],
+      percentiles["p99"],
+      self.format_float_value(total_data_received_mb),
+      self.format_float_value(throughput_mbps),
+    );
+
+    csv.push_str(&format!("{}\n{}", header, row));
+
+    let mut file = std::fs::File::create("summary_report.csv").unwrap();
+    file.write_all(csv.as_bytes()).unwrap(); 
+  }
+
   
-  fn format_bytes(&self, bytes: u64) -> String {
+  fn format_bytes(&self, bytes: u64) -> f64 {
     let kb = bytes as f64 / 1024.0;
     let mb = kb / 1024.0;
-    let gb = mb / 1024.0;
-
-    if gb >= 1.0 {
-        format!("{:.2} GB", gb)
-    } else if mb >= 1.0 {
-        format!("{:.2} MB", mb)
-    } else if kb >= 1.0 {
-        format!("{:.2} KB", kb)
-    } else {
-        format!("{} B", bytes)
-    }
+    mb
   }
 
   fn calculate_throughput(&self, bytes: u64, duration_secs: f64) -> f64 {
@@ -317,19 +366,11 @@ impl ConnSaturator {
     mbps
   }
 
-  fn format_throughput(&self, mbps: f64) -> String {
-    let kb = mbps / 8.0;
-    let mb = kb / 1024.0;
-    let gb = mb / 1024.0;
+  fn format_float_value(&self, value: f64) -> f64 {
+    (value * 100.0).round() / 100.0
+  }
 
-    if gb >= 1.0 {
-        format!("{:.2} GB/s", gb)
-    } else if mb >= 1.0 {
-        format!("{:.2} MB/s", mb)
-    } else if kb >= 1.0 {
-        format!("{:.2} KB/s", kb)
-    } else {
-        format!("{} B/s", mbps)
-    }
+    fn format_integer_value(&self, value: f64) -> u64 {
+    (value.round() as u64)
   }
 }

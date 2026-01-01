@@ -107,11 +107,11 @@ pub struct Config {
 #[derive(Serialize)]
 struct SummaryReport {
     target_url: String,
-    total_requests: f64,
-    total_successful_requests: f64,
-    total_failed_requests: f64,
+    total_requests: u64,
+    total_successful_requests: u64,
+    total_failed_requests: u64,
     avg_latency_ms: f64,
-    success_rate: f64,
+    success_rate: u64,
     total_duration_secs: f64,
     rps: f64,
     p50_latency_ms: f64,
@@ -119,6 +119,6 @@ struct SummaryReport {
     p95_latency_ms: f64,
     p99_latency_ms: f64,
     status_code_distribution: HashMap<String, u64>,
-    total_data_received_mb: String,
-    throughput_mbps: String, 
+    total_data_received_mb: f64,
+    throughput_mbps: f64, 
 }
