@@ -6,3 +6,5 @@ Cargo.lock
 .env
 Makefile.toml.bak
 connsaturator-arm64
+*.json
+*.csv

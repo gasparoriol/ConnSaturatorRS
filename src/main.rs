@@ -50,6 +50,10 @@ struct Cli {
     /// Insecure (Default: false)
     #[arg(long, short = 'i', default_value_t = false)]
     pub insecure: bool,
+    
+    /// Output report (Default: false)
+    #[arg(long, short = 'o', default_value_t = false)]
+    pub output: bool,
 }
 
 #[tokio::main]
@@ -70,6 +74,7 @@ pub async fn main() {
         user_agent: arguments.user_agent,
         content_type: arguments.content_type,
         insecure: arguments.insecure,
+        output: arguments.output,
     };
 
     // create saturator and run
