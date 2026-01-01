@@ -33,7 +33,7 @@ During the development of this tool, I explored several core Rust and systems en
 
 ### Installation
 
-```basg
+```bash
 1. **Clone the repository:**
    git clone https://github.com/gasparoriol/ConnSaturatorRS.git
 
@@ -61,7 +61,7 @@ cargo run -- --url http://localhost:8080/api --requests 1000 --concurrency 50
 ```
 
 #### Parameters:
-
+```bash
 Options:
   -u, --url <URL>                    URL to test (Required)
   -r, --requests <REQUESTS>          Total number of requests [default: 100]
@@ -76,6 +76,7 @@ Options:
   -i, --insecure                     Insecure (Default: false)
   -h, --help                         Print help
   -V, --version                      Print version
+```
 
 ## 📊 Execution Example
 

@@ -14,3 +14,6 @@ reqwest = { version = "0.12", default-features = false, features = ["json", "rus
 clap = { version = "4.0", features = ["derive"] }
 chrono = "0.4"
 indicatif = "0.17"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+csv = "1.3"
