@@ -11,6 +11,8 @@ use reqwest::header::{HeaderName, HeaderValue};
 use serde::{Deserialize, Serialize};
 use std::str::FromStr;
 use std::collections::HashMap;
+use std::sync::atomic::{AtomicU64};
+use std::time::Duration;
 
 //Methods
 #[derive(ValueEnum, Clone, Debug, Copy, PartialEq)]
@@ -102,11 +104,23 @@ pub struct Config {
   pub content_type: String,
   pub insecure: bool,
   pub output: bool,
+  pub warmup: usize,
+}
+
+
+struct LoadResult {
+  latencies: Vec<Duration>,
+  status_codes: HashMap<String, u64>,
+  success_counter: usize,
+  error_counter: usize,
+  duration: Duration,
+  total_bytes: AtomicU64,
 }
 
 #[derive(Serialize)]
 struct SummaryReport {
     target_url: String,
+    warmup_requests: u64,
     total_requests: u64,
     total_successful_requests: u64,
     total_failed_requests: u64,

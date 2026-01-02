@@ -7,6 +7,7 @@ use indicatif::{ProgressBar, ProgressStyle};
 use crate::connsaturator::requestbuilder;
 use crate::connsaturator::Config;
 use crate::connsaturator::SummaryReport;
+use crate::connsaturator::LoadResult;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::fs::File;
 use std::io::Write;
@@ -29,112 +30,65 @@ impl ConnSaturator {
   }
 
   pub async fn run(&self) {
-    println!("\n\nStarting connection saturation test in {}", self.config.url);
-    println!("Running with {} requests and {} concurrency", self.config.requests, self.config.concurrency);
 
     let total_requests = self.config.requests as u64;
+
+    let concurrency = self.config.concurrency as usize;
+    let url = self.config.url.clone();
+   
+    println!("\n\n🚀 Starting connection saturation test in {}", self.config.url);
+
+    let warmup = if self.config.warmup == 0 {
+        println!("\nWarmup: Applying 5% of total requests ({}) to stabilize connections...", total_requests * 5 / 100);
+        total_requests * 5 / 100
+    } else {
+        self.config.warmup as u64
+    };
+
+    println!("Running with {} requests and {} concurrency", total_requests, concurrency);
+
+
+
+    if warmup > 0 {
+      let warmup_progress_bar = ProgressBar::new(warmup);
+      warmup_progress_bar.set_style(
+        ProgressStyle::default_bar()
+          .template("{spinner:.green} {msg} [{elapsed_precise}] {bar:40.cyan/blue} {pos}/{len} {eta}")
+          .unwrap()
+          .progress_chars("=> ")
+      );
+      warmup_progress_bar.set_message("Warmup");
+      let _ = self.execute_requests(&url, warmup, concurrency, &warmup_progress_bar, true).await;
+      tokio::time::sleep(Duration::from_millis(500)).await;
+      warmup_progress_bar.finish_with_message("🔥 Warmup completed");
+    } 
+
     let progress_bar = ProgressBar::new(total_requests);
     progress_bar.set_style(
       ProgressStyle::default_bar()
-        .template("{spinner:.green} [{elapsed_precise}] {bar:40.cyan/blue} {pos}/{len} {eta}")
+        .template("{spinner:.green} {msg} [{elapsed_precise}] {bar:40.cyan/blue} {pos}/{len} {eta}")
         .unwrap()
         .progress_chars("=> ")
     );
-    
+    progress_bar.set_message("Running");
 
-    let start = Instant::now();
+    let result = self.execute_requests(&url, total_requests, concurrency, &progress_bar, false).await;
 
-    let semaphore = Arc::new(Semaphore::new(self.config.concurrency));
-    let client = Arc::new(self.client.clone());
-    let mut handles = vec![];
+    progress_bar.finish_with_message("📊 Benchmark finished");
 
-    let config = Arc::new(self.config.clone());
-   
+    let latencies = result.latencies;
+    let status_code = result.status_codes;
+    let success_counter = result.success_counter;
+    let error_counter = result.error_counter;
+    let duration = result.duration;
+    let total_bytes = result.total_bytes;
 
-    for _ in 0..self.config.requests {
-      let clonned_client = Arc::clone(&client);
-  
-
-      let permit = Arc::clone(&semaphore);
-
-      let progress_bar_clone = progress_bar.clone();
-
-      let config_for_thread = Arc::clone(&config);
-
-      let handle = tokio::spawn(async move {
-        // here we acquire a permit
-        let _permit = permit.acquire_owned().await.unwrap();
-
-        let start_request = Instant::now();
-        let response = requestbuilder::create_builder(&clonned_client, &*config_for_thread).send().await;
-        let duration = start_request.elapsed();
-        
-        progress_bar_clone.inc(1);
-        // here the permit is dropped and the slot is released
-
-        (response, duration)
-      });
-
-      handles.push(handle);
-    }
-
-    let mut succes_counter = 0;
-    let mut error_counter = 0;
-    let mut status_code: HashMap<String, u64> = HashMap::new();
-    let mut latencies: Vec<Duration> = Vec::new();
-    let mut total_bytes: AtomicU64 = AtomicU64::new(0);
-
-    //waiting for all requests to complete
-    for handle in handles {
-      match handle.await {
-        Ok((result_response, duration)) => {
-          match result_response {
-            Ok(response) => {
-              let status = response.status().to_string();
-              if response.status().is_success() {
-                succes_counter += 1;
-              } else {
-                error_counter += 1;
-              }
-              if let Some(len) = response.content_length() {
-                total_bytes.fetch_add(len, Ordering::Relaxed);
-              } else {
-                if let Ok(body_bytes) = response.bytes().await {
-                  total_bytes.fetch_add(body_bytes.len() as u64, Ordering::Relaxed);
-                } else {
-                  error_counter += 1;
-                }
-              }
-
-              latencies.push(duration);
-              
-              *status_code.entry(status).or_insert(0) += 1;
-            
-          },
-          Err(e) => {
-            error_counter += 1;
-            *status_code.entry("Network Error".to_string()).or_insert(0) += 1;
-          }
-        }
-        },
-        Err(e) =>   {
-          error_counter += 1;
-          *status_code.entry("Panic Error".to_string()).or_insert(0) += 1;
-        }
-      } 
-    }
-
-    progress_bar.finish_with_message("Done");
-    let duration = start.elapsed();
-    
-    latencies.sort();
-
-    self.print_results(succes_counter, error_counter, duration, &status_code, &latencies);
+    self.print_results(success_counter, error_counter, duration, &status_code, &latencies);
     println!("\nConnection saturation test completed\n");
 
     if self.config.output {
-      self.save_report_json(succes_counter, error_counter, duration, &status_code, &latencies, total_bytes.load(Ordering::Relaxed));
-      self.save_report_csv(succes_counter, error_counter, duration, &status_code, &latencies, total_bytes.load(Ordering::Relaxed));
+      self.save_report_json(success_counter, error_counter, duration, &status_code, &latencies, total_bytes.load(Ordering::Relaxed));
+      self.save_report_csv(success_counter, error_counter, duration, &status_code, &latencies, total_bytes.load(Ordering::Relaxed));
     } 
   }
 
@@ -175,11 +129,18 @@ impl ConnSaturator {
     
     let average_latency = total_duration_millis / latencies.len() as u32;
 
+    let warmup = if self.config.warmup == 0 {
+      self.config.requests * 5 / 100
+    } else {
+      self.config.warmup
+    };
+
     println!("\nResults:");
     println!("{}", "=".repeat(60));
     
     println!("{:<35} {}", "Target URL:", self.config.url);
     println!("{:<35} {}", "Total Requests:", total_requests);
+    println!("{:<35} {}", "Warmup Requests:", warmup);
     println!("{:<35} {}", "Total successful requests:", succes_counter);
     println!("{:<35} {}", "Total failed requests:", error_counter);
     println!("\nStatus Code Distribution:");
@@ -267,8 +228,15 @@ impl ConnSaturator {
     let total_data_received_mb = self.format_bytes(total_bytes);
     let throughput_mbps = self.calculate_throughput(total_bytes, total_duration_secs);
 
+    let warmup = if self.config.warmup == 0 {
+      self.config.requests * 5 / 100
+    } else {
+      self.config.warmup
+    };
+
     let summary_report = SummaryReport {
       target_url: self.config.url.clone(),
+      warmup_requests: warmup as u64,
       total_requests: self.format_integer_value(total_requests as f64),
       total_successful_requests: self.format_integer_value(succes_counter as f64),
       total_failed_requests: self.format_integer_value(error_counter as f64),
@@ -372,5 +340,110 @@ fn save_report_csv(&self, succes_counter: usize, error_counter: usize, duration:
 
     fn format_integer_value(&self, value: f64) -> u64 {
     (value.round() as u64)
+  }
+
+  async fn execute_requests(&self, target_url: &String,
+    requests: u64,
+    concurrency: usize,
+    progress_bar: &ProgressBar,
+    warmup: bool,
+  ) -> LoadResult {
+    let mut latencies: Vec<Duration> = if warmup { Vec::with_capacity(requests as usize) } else { Vec::new() };
+    let mut status_codes = HashMap::new();
+    let mut success_counter = 0;
+    let mut error_counter = 0;
+    let mut duration = Duration::from_secs(0);
+    let mut total_bytes: AtomicU64 = AtomicU64::new(0);
+    
+    let semaphore = Arc::new(Semaphore::new(concurrency));
+    let client = Arc::new(self.client.clone());
+    
+
+    let config = Arc::new(self.config.clone());
+    
+    let start_time = Instant::now();
+
+    let mut handles = Vec::new();
+
+    for _ in 0..requests {
+      let clonned_client = Arc::clone(&client);
+      
+      let clonned_progress_bar = progress_bar.clone();
+      
+      let clonned_config_for_thread = Arc::clone(&config);
+
+      let permit = Arc::clone(&semaphore).acquire_owned().await.unwrap();
+
+
+      let handle = tokio::spawn(async move {
+        let _permit = permit;
+
+        let request_start_time = Instant::now();
+        let response = requestbuilder::create_builder(&clonned_client, &*clonned_config_for_thread).send().await;
+        let duration = request_start_time.elapsed();
+        
+        clonned_progress_bar.inc(1);
+
+        drop(_permit);
+
+        match response {
+          Ok(response) => {
+            (Some(duration), Some(response))
+          },
+          Err(e) => (None, None)
+        }
+      });
+      handles.push(handle);
+    }
+    
+    for handle in handles {
+      match handle.await {
+        Ok((duration_option, result_response)) => {
+          if !warmup {
+            match result_response {
+              Some(response) => {
+                let status = response.status().to_string();
+                if response.status().is_success() {
+                  success_counter += 1;
+                } else {
+                  error_counter += 1;
+                }
+
+                if let Some(len) = response.content_length() {
+                  total_bytes.fetch_add(len, Ordering::Relaxed);
+                } 
+
+                if let Some(d) = duration_option {
+                  latencies.push(d);
+                }
+
+                *status_codes.entry(status).or_insert(0) += 1;
+                
+              },
+              None => {
+                error_counter += 1;
+                *status_codes.entry("Network Error".to_string()).or_insert(0) += 1;
+              }
+            }
+          }
+        },
+        Err(e) => {
+          error_counter += 1;
+          *status_codes.entry("Panic Error".to_string()).or_insert(0) += 1;
+        }
+      }
+    }
+    
+    duration = start_time.elapsed();
+    latencies.sort();
+
+    LoadResult {
+      latencies,
+      status_codes,
+      success_counter,
+      error_counter,
+      duration,
+      total_bytes,
+    }
   }
 }
