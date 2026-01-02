@@ -54,6 +54,10 @@ struct Cli {
     /// Output report (Default: false)
     #[arg(long, short = 'o', default_value_t = false)]
     pub output: bool,
+
+    /// Warmup requests (Default: 0)
+    #[arg(long, short = 'w', default_value_t = 0)]
+    pub warmup: usize,
 }
 
 #[tokio::main]
@@ -75,6 +79,7 @@ pub async fn main() {
         content_type: arguments.content_type,
         insecure: arguments.insecure,
         output: arguments.output,
+        warmup: arguments.warmup,
     };
 
     // create saturator and run
