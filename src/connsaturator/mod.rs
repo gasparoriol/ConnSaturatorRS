@@ -119,6 +119,7 @@ struct LoadResult {
 
 #[derive(Serialize)]
 struct SummaryReport {
+    command: String,
     target_url: String,
     warmup_requests: u64,
     total_requests: u64,
