@@ -12,6 +12,8 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use std::fs::File;
 use std::io::Write;
 
+use std::env;
+
 
 pub struct ConnSaturator {
   config: Config,
@@ -31,6 +33,18 @@ impl ConnSaturator {
 
   pub async fn run(&self) {
 
+    let mut args = env::args().collect::<Vec<String>>();
+    if let Some(pos) = args.iter().position(|r| r == "--token") {
+      if pos + 1 < args.len() {
+        args[pos + 1] = "[MASKED]".to_string();
+      }
+    }
+    let command = args.join(" ");
+
+
+
+    println!("\nCommand: {}", command);
+
     let total_requests = self.config.requests as u64;
 
     let concurrency = self.config.concurrency as usize;
@@ -39,6 +53,10 @@ impl ConnSaturator {
     println!("\n\n🚀 Starting connection saturation test in {}", self.config.url);
 
     let warmup = if self.config.warmup == 0 {
+        println!("\nWarmup: Applying 5% of total requests ({}) to stabilize connections...", total_requests * 5 / 100);
+        total_requests * 5 / 100
+    } else if self.config.warmup as u64 >= total_requests {
+        println!("\nWarmup: Warmup requests ({}) is greater than total requests ({})", self.config.warmup, total_requests);
         println!("\nWarmup: Applying 5% of total requests ({}) to stabilize connections...", total_requests * 5 / 100);
         total_requests * 5 / 100
     } else {
@@ -87,7 +105,7 @@ impl ConnSaturator {
     println!("\nConnection saturation test completed\n");
 
     if self.config.output {
-      self.save_report_json(success_counter, error_counter, duration, &status_code, &latencies, total_bytes.load(Ordering::Relaxed));
+      self.save_report_json(success_counter, error_counter, duration, &status_code, &latencies, total_bytes.load(Ordering::Relaxed), command);
       self.save_report_csv(success_counter, error_counter, duration, &status_code, &latencies, total_bytes.load(Ordering::Relaxed));
     } 
   }
@@ -199,7 +217,7 @@ impl ConnSaturator {
     } 
   }
 
-   fn save_report_json(&self, succes_counter: usize, error_counter: usize, duration: Duration, status_code: &HashMap<String, u64>, latencies: &Vec<Duration>, total_bytes: u64) {
+   fn save_report_json(&self, succes_counter: usize, error_counter: usize, duration: Duration, status_code: &HashMap<String, u64>, latencies: &Vec<Duration>, total_bytes: u64, command: String) {
     let percentiles = self.calculate_percentiles(&latencies);
     
     let total_requests = succes_counter + error_counter;
@@ -235,6 +253,7 @@ impl ConnSaturator {
     };
 
     let summary_report = SummaryReport {
+      command,
       target_url: self.config.url.clone(),
       warmup_requests: warmup as u64,
       total_requests: self.format_integer_value(total_requests as f64),
@@ -254,9 +273,11 @@ impl ConnSaturator {
       };
 
     let json = serde_json::to_string_pretty(&summary_report).unwrap();
-    println!("\nSummary Report:\n{}", json);
 
-    let mut file = std::fs::File::create("summary_report.json").unwrap();
+    let now = chrono::Local::now().format("%Y-%m-%d_%H-%M-%S").to_string();
+    let filename = format!("summary_report_{}.json", now);
+
+    let mut file = std::fs::File::create(filename).unwrap();
     file.write_all(json.as_bytes()).unwrap(); 
   }
 
@@ -313,7 +334,10 @@ fn save_report_csv(&self, succes_counter: usize, error_counter: usize, duration:
 
     csv.push_str(&format!("{}\n{}", header, row));
 
-    let mut file = std::fs::File::create("summary_report.csv").unwrap();
+    let now = chrono::Local::now().format("%Y-%m-%d_%H-%M-%S").to_string();
+    let filename = format!("summary_report_{}.csv", now);
+
+    let mut file = std::fs::File::create(filename).unwrap();
     file.write_all(csv.as_bytes()).unwrap(); 
   }
 
