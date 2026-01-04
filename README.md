@@ -19,6 +19,8 @@ This tool is strictly for **educational and research purposes** within the field
 - **Support for HTTP Methods**: Adding POST, PUT, and DELETE support with custom JSON payloads.
 - **Detailed Analytics**: Reporting status code distribution (e.g., 2xx, 4xx, 5xx) and percentiles (p95, p99) for latency and histogram of latencies.
 - **Custom Headers**: Ability to pass authentication tokens or custom User-Agents via CLI.
+- **Report Export**: Exporting results to JSON or CSV formats for further analysis.
+- **Warmup**: Implementing a warmup phase to ensure the target server is ready to handle the load.
 
 ## 🧠 Lessons Learned
 
@@ -29,9 +31,8 @@ During the development of this tool, I explored several core Rust and systems en
 - **Robust Error Handling**: Implementing idiomatic Rust error patterns to ensure the tool remains stable even when the target server fails.
 - **DoS Mitigation Strategies**: Analyzed server-side defenses such as *Rate Limiting* and *Circuit Breakers* (specifically in Spring Boot) to understand how to protect applications from high-traffic surges.
 
-## 🛠️ Usage
 
-### Installation
+## 📦 Installation
 
 ```bash
 1. **Clone the repository:**
@@ -51,7 +52,7 @@ During the development of this tool, I explored several core Rust and systems en
 
 
 
-### Running the Tool
+## 🛠️ Usage
 
 This is a CLI-based tool. You can run it directly using `cargo`:
 
@@ -62,6 +63,8 @@ cargo run -- --url http://localhost:8080/api --requests 1000 --concurrency 50
 
 #### Parameters:
 ```bash
+Usage: ConnSaturatorRS [OPTIONS] --url <URL>
+
 Options:
   -u, --url <URL>                    URL to test (Required)
   -r, --requests <REQUESTS>          Total number of requests [default: 100]
@@ -74,6 +77,8 @@ Options:
   -a, --user-agent <USER_AGENT>      User agent (Default: None)
   -t, --content-type <CONTENT_TYPE>  Content type [default: application/json]
   -i, --insecure                     Insecure (Default: false)
+  -o, --output                       Output report (Default: false)
+  -w, --warmup <WARMUP>              Warmup requests (Default: 0) [default: 0]
   -h, --help                         Print help
   -V, --version                      Print version
 ```
@@ -81,50 +86,49 @@ Options:
 ## 📊 Execution Example
 
 ```text
-Starting connection saturation test on http://localhost:8080/api
-Running with 100 requests and 10 concurrency
-  [00:00:04] ======================================== 100/100 0s                                                                                                                                                            
+Command: target/debug/ConnSaturatorRS --url http://localhost:3000/protected --requests 100000 --concurrency 25 --method get --token [MASKED] --output --warmup 1500
+
+
+🚀 Starting connection saturation test in http://localhost:3000/protected
+Running with 100000 requests and 25 concurrency
+  🔥 Warmup completed [00:00:00] ======================================== 1500/1500 0s 
+  📊 Benchmark finished [00:00:07] ======================================== 100000/100000 0s 
 Results:
 ============================================================
-Target URL:                         http://localhost:8080/api
-Total Requests:                     100
-Total successful requests:          99
-Total failed requests:              1
+Target URL:                         http://localhost:3000/protected
+Total Requests:                     100000
+Warmup Requests:                    1500
+Total successful requests:          100000
+Total failed requests:              0
 
 Status Code Distribution:
-502 Bad Gateway                     1 requests
-200 OK                              99 requests
+200 OK                              100000 requests
 
-Success Rate:                       99.00%
+Success Rate:                       100.00%
 ------------------------------------------------------------
-Total duration:                     4.31 s
-Throughput (Requests per Second):   23.22 req/s
-Average latency:                    408.00 ms
-p50 latency:                        360.00 ms
-p90 latency:                        884.00 ms
-p95 latency:                        1098.00 ms
-p99 latency:                        1711.00 ms
+Total duration:                     7.25 s
+Throughput (Requests per Second):   13798.75 req/s
+Average latency:                    1.00 ms
+p50 latency:                        1.00 ms
+p90 latency:                        2.00 ms
+p95 latency:                        2.00 ms
+p99 latency:                        10.00 ms
 
 Latency Histogram:
-    92ms -  253ms  [#############                 ] 44
-   253ms -  414ms  [####                          ] 16
-   414ms -  575ms  [#####                         ] 18
-   575ms -  736ms  [##                            ] 7
-   736ms -  897ms  [#                             ] 6
-   897ms - 1058ms  [                              ] 3
-  1058ms - 1219ms  [#                             ] 4
-  1219ms - 1380ms  [                              ] 0
-  1380ms - 1541ms  [                              ] 1
-  1541ms - 1711ms  [                              ] 1
+     0ms -    4ms  [############################# ] 97432
+     4ms -    8ms  [                              ] 1235
+     8ms -   12ms  [                              ] 418
+    12ms -   16ms  [                              ] 214
+    16ms -   20ms  [                              ] 137
+    20ms -   24ms  [                              ] 96
+    24ms -   28ms  [                              ] 257
+    28ms -   32ms  [                              ] 201
+    32ms -   36ms  [                              ] 6
+    36ms -   48ms  [                              ] 4
 
 Connection saturation test completed
 
 ```
-
-## 🔮 Future Work
-
-To enhance the diagnostic capabilities of ConnSaturatorRS, the following features are planned:
-* **Report Export**: Exporting results to JSON or CSV formats for further analysis.
 
 ## Mitigation
 Want to know more about the mitigation strategies? Check out the [MITIGATION.md](./MITIGATION.md) file.
