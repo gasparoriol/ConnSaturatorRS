@@ -256,9 +256,13 @@ impl ConnSaturator {
     };
 
     // To calculate average
-    let total_duration_millis: Duration = latencies.iter().sum();
-    
-    let average_latency = total_duration_millis / latencies.len() as u32;
+    let mut total_duration_millis = Duration::from_millis(0);
+    let mut average_latency_ms = 0;
+
+    if !latencies.is_empty() {
+      total_duration_millis = latencies.iter().sum();
+      average_latency_ms = (total_duration_millis.as_millis() as u64 / latencies.len() as u64) as u32;
+    }
 
 
     let total_data_received_mb = self.format_bytes(total_bytes);
@@ -277,7 +281,7 @@ impl ConnSaturator {
       total_requests: self.format_integer_value(total_requests as f64),
       total_successful_requests: self.format_integer_value(succes_counter as f64),
       total_failed_requests: self.format_integer_value(error_counter as f64),
-      avg_latency_ms: average_latency.as_millis() as f64,
+      avg_latency_ms: average_latency_ms as f64,
       success_rate: self.format_integer_value(success_rate),
       total_duration_secs: self.format_float_value(total_duration_secs),
       rps: self.format_float_value(rps),
