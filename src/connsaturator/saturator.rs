@@ -111,13 +111,27 @@ impl ConnSaturator {
   }
 
   fn calculate_percentiles(&self, latencies: &Vec<Duration>) -> HashMap<String, f64> {
-    let mut latencies = latencies.clone();
-    latencies.sort();
     let mut percentiles = HashMap::new();
-    percentiles.insert("p50".to_string(), latencies[latencies.len() / 2].as_millis() as f64);
-    percentiles.insert("p90".to_string(), latencies[latencies.len() * 9 / 10].as_millis() as f64);
-    percentiles.insert("p95".to_string(), latencies[latencies.len() * 95 / 100].as_millis() as f64);
-    percentiles.insert("p99".to_string(), latencies[latencies.len() * 99 / 100].as_millis() as f64);
+
+    if latencies.is_empty() {
+        return percentiles;
+    }
+
+    let mut sorted_latencies = latencies.to_vec();
+    sorted_latencies.sort();
+
+    let len = sorted_latencies.len();
+
+    let mut add_p = |label: &str, index: usize| {
+        if let Some(val) = sorted_latencies.get(index) {
+            percentiles.insert(label.to_string(), val.as_millis() as f64);
+        }
+    };
+
+    add_p("p50", len / 2);
+    add_p("p90", len * 9 / 10);
+    add_p("p95", len * 95 / 100);
+    add_p("p99", len * 99 / 100);
 
     percentiles
   }
