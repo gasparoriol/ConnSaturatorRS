@@ -156,10 +156,14 @@ impl ConnSaturator {
       0.0
     };
 
-    // To calculate average
-    let total_duration_millis: Duration = latencies.iter().sum();
-    
-    let average_latency = total_duration_millis / latencies.len() as u32;
+    let mut total_duration_millis = Duration::from_millis(0);
+    let mut average_latency_ms = 0;
+
+    if !latencies.is_empty() {
+      total_duration_millis = latencies.iter().sum();
+      average_latency_ms = (total_duration_millis.as_millis() as u64 / latencies.len() as u64) as u32;
+    }
+
 
     let warmup = if self.config.warmup == 0 {
       self.config.requests * 5 / 100
@@ -183,7 +187,7 @@ impl ConnSaturator {
     println!("{}", "-".repeat(60));
     println!("{:<35} {:.2} s", "Total duration:", total_duration_secs);
     println!("{:<35} {:.2} req/s", "Throughput (Requests per Second):", rps);
-    println!("{:<35} {:.2} ms", "Average latency:", average_latency.as_millis() as f64);
+    println!("{:<35} {} ms", "Average latency:", average_latency_ms);
     if latencies.len() > 0 {
       println!("{:<35} {:.2} ms", "p50 latency:", percentiles["p50"]);
       println!("{:<35} {:.2} ms", "p90 latency:", percentiles["p90"]);
